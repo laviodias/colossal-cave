@@ -82,6 +82,9 @@
 (define knock (verb (list 'knock) (symbol->string 'knock) #t))
 (record-element! 'knock knock)
 
+(define fight (verb (list 'fight) (symbol->string 'fight) #t))
+(record-element! 'fight fight)
+
 (define quit (verb (list 'quit 'exit) "quit" #f))
 (record-element! 'quit quit)
 
@@ -136,6 +139,18 @@
          (list (cons get (lambda () "Ouch!")))))
 (record-element! 'cactus cactus)
 
+(define treasure
+  (thing 'treasure 
+         #f 
+         (list (cons open (lambda () "Opened!")))))
+(record-element! 'treasure treasure)
+
+(define lion
+  (thing 'lion 
+         #f 
+         (list (cons fight (lambda () (begin (printf "It's never a good idea to fight a giant lion without any equipment. You died!\n") (exit)))))))
+(record-element! 'lion lion)
+
 (define door
   (thing 'door
          #f
@@ -172,6 +187,14 @@
                       (begin
                         (take-thing! key)
                         "You now have the key."))))
+
+          (cons look 
+                (lambda ()
+                  (if (have-thing? key)
+                      "Seems to be your way into somewhere locked."
+                      (begin
+                        (take-thing! key)
+                        "You can get it to have a closer look."))))
           (cons put 
                 (lambda ()
                   (if (have-thing? key)
@@ -221,14 +244,34 @@
 
 (define desert
   (place
-   "You're in a desert. There is nothing for miles around."
-   (list cactus key)
+   "You're in a desert. There is nothing here but an old ruin far south."
+   (list cactus)
    (list
     (cons north (lambda () meadow))
-    (cons south (lambda () desert))
+    (cons south (lambda () ruin-front))
     (cons east (lambda () desert))
     (cons west (lambda () desert)))))
 (record-element! 'desert desert)
+
+(define ruin-front
+  (place
+   "You are now in front of the ruin, you hear a loud roar inside. It might be dangerous to get in..."
+   (list)
+   (list
+    (cons north (lambda () desert))
+    (cons in (lambda () ruin))
+    )))
+(record-element! 'ruin-front ruin-front)
+
+(define ruin
+  (place
+   "You see a giant lion guarding some kind of treasure. It looks hungry!"
+   (list lion treasure)
+   (list
+    (cons north (lambda () ruin-front))
+    )))
+(record-element! 'ruin ruin)
+
 
 (define room
   (place
