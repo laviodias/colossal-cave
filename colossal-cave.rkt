@@ -82,7 +82,7 @@
 (define knock (verb (list 'knock) (symbol->string 'knock) #t))
 (record-element! 'knock knock)
 
-(define fight (verb (list 'fight) (symbol->string 'fight) #t))
+(define fight (verb (list 'fight 'kill 'confront 'attack) (symbol->string 'fight) #t))
 (record-element! 'fight fight)
 
 (define quit (verb (list 'quit 'exit) "quit" #f))
@@ -93,6 +93,9 @@
 
 (define inventory (verb (list 'inventory) "check inventory" #f))
 (record-element! 'inventory inventory)
+
+(define health (verb (list 'health) "check health" #f))
+(record-element! 'health health)
 
 (define help (verb (list 'help) (symbol->string 'help) #f))
 (record-element! 'help help)
@@ -125,6 +128,7 @@
    (cons quit (lambda () (begin (printf "Bye!\n") (exit))))
    (cons look (lambda () (show-current-place)))
    (cons inventory (lambda () (show-inventory)))
+   (cons health (lambda () (show-health)))
    (cons save (lambda () (save-game)))
    (cons load (lambda () (load-game)))
    (cons help (lambda () (show-help)))))
@@ -139,16 +143,26 @@
          (list (cons get (lambda () "Ouch!")))))
 (record-element! 'cactus cactus)
 
-(define treasure
-  (thing 'treasure 
-         #f 
-         (list (cons open (lambda () "Opened!")))))
-(record-element! 'treasure treasure)
-
 (define lion
   (thing 'lion 
          #f 
-         (list (cons fight (lambda () (begin (printf "It's never a good idea to fight a giant lion without any equipment. You died!\n") (exit)))))))
+         (list (cons fight (lambda ()
+                             (cond
+                                    [(have-thing? sword) 
+                                        (begin (printf "You defeated the lion with you powerfull sword! It droped a key that now is in your inventory.\n") (take-thing! key) (set! lion-alive #f))
+                                    ]
+                                    [(have-thing? armor) (if (<= health-value 20)
+                                        (begin (printf "You took too much damage and died!\n") (exit))
+                                        (begin (printf "Your armor saved you this time, but you took some damage! You can't defeat this lion without a sword.\n") (set! health-value (- health-value 20)))
+                                    )]
+                                   [else
+                                    (if (<= health-value 60)
+                                        (begin (printf "You took too much damage and died!\n") (exit))
+                                        (begin (printf "It's never a good idea to fight a giant lion without any equipment. You're now injuried!\n") (set! health-value (- health-value 60)))
+                                    )]
+                                   )
+                             )))
+   ))
 (record-element! 'lion lion)
 
 (define door
@@ -204,6 +218,62 @@
                       "You don't have the key."))))))
 (record-element! 'key key)
 
+(define armor
+  (thing 'armor
+         #f
+         (list
+          (cons get 
+                (lambda ()
+                  (if (have-thing? armor)
+                      "You already have the armor."
+                      (begin
+                        (take-thing! armor)
+                        "You now have the armor."))))
+
+          (cons look 
+                (lambda ()
+                  (if (have-thing? armor)
+                      "With this you get less damage when fighting enemies."
+                      (begin
+                        (take-thing! armor)
+                        "You can get it to be able to take more damage from enemies."))))
+          (cons put 
+                (lambda ()
+                  (if (have-thing? armor)
+                      (begin
+                        (drop-thing! armor)
+                        "You have dropped the armor.")
+                      "You don't have the armor."))))))
+(record-element! 'armor armor)
+
+(define sword
+  (thing 'sword
+         #f
+         (list
+          (cons get 
+                (lambda ()
+                  (if (have-thing? sword)
+                      "You already have the sword."
+                      (begin
+                        (take-thing! sword)
+                        "You now have the sword."))))
+
+          (cons look 
+                (lambda ()
+                  (if (have-thing? sword)
+                      "With this you can defeat enemies."
+                      (begin
+                        (take-thing! sword)
+                        "You can get it to be able to defeat enemies."))))
+          (cons put 
+                (lambda ()
+                  (if (have-thing? sword)
+                      (begin
+                        (drop-thing! sword)
+                        "You have dropped the sword.")
+                      "You don't have the sword."))))))
+(record-element! 'sword sword)
+
 (define trophy
   (thing 'trophy
          #f
@@ -232,7 +302,7 @@
 (define house-front
   (place
    "You are standing in front of a house."
-   (list door)
+   (list door armor sword)
    (list
     (cons in 
           (lambda ()
@@ -266,7 +336,7 @@
 (define ruin
   (place
    "You see a giant lion guarding some kind of treasure. It looks hungry!"
-   (list lion treasure)
+   (list lion)
    (list
     (cons north (lambda () ruin-front))
     )))
@@ -288,6 +358,13 @@
 
 ;; Current location:
 (define current-place meadow) ; place
+
+;; Defines if lion is dead or alive
+(define lion-alive #t)
+
+;; Health
+(define health-value 100)
+(define health-status (lambda () health-value))
 
 ;; Functions to be used by verb responses:
 (define (have-thing? t)
@@ -411,6 +488,12 @@
                 stuff))
   (printf "\n"))
 
+;; Show player's health:
+(define (show-health)
+  (printf "Your health is ~a" (health-status))
+  (printf "\n"))
+
+
 ;; Look for a command match in a list of verb--response pairs,
 ;; and returns the response thunk if a match is found:
 (define (find-verb cmd actions)
@@ -431,6 +514,7 @@
 (define (show-help)
   (printf "Use `look' to look around.\n")
   (printf "Use `inventory' to see what you have.\n")
+  (printf "Use `health` to see your current health.\n")
   (printf "Use `save' or `load' to save or restore your game.\n")
   (printf "There are some other verbs, and you can name a thing after some verbs.\n"))
 
