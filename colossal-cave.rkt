@@ -339,6 +339,7 @@
    (list lion)
    (list
     (cons north (lambda () ruin-front))
+    (cons out (lambda () ruin-front))
     )))
 (record-element! 'ruin ruin)
 
